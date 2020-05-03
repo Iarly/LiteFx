@@ -19,46 +19,52 @@ namespace LiteFx.Context.NHibernate
 		{
 			get
 			{
-                if (configuration == null)
-                    throw new InvalidOperationException(ResourceHelper.GetString("YouHaveToCallConfigurationManagerInitializeAtLiteFxWebNHibernateStart"));
+				if (configuration == null)
+					throw new InvalidOperationException(ResourceHelper.GetString("YouHaveToCallConfigurationManagerInitializeAtLiteFxWebNHibernateStart"));
 
 				return configuration;
 			}
 		}
 
-        public static void Initialize() 
-        {
-            if (configuration != null)
-                throw new InvalidOperationException(ResourceHelper.GetString("YouCanCallConfigurationManagerInitializeOnlyOnce"));
+		public static void Initialize(Configuration configuration)
+		{
+			configuration.LinqToHqlGeneratorsRegistry<ExtendedLinqtoHqlGeneratorsRegistry>();
 
-            try
-            {
-                _configMutex.WaitOne();
-                                
-                configuration = new Configuration();
-                configuration.LinqToHqlGeneratorsRegistry<ExtendedLinqtoHqlGeneratorsRegistry>();
+			if (PreCustomConfiguration != null)
+				PreCustomConfiguration(configuration);
 
-                if (PreCustomConfiguration != null)
-                    PreCustomConfiguration(configuration);
+			configuration = Fluently.Configure(configuration)
+					.Mappings(m =>
+					{
+						m.FluentMappings
+							.Conventions.Setup(s => s.Add(AutoImport.Never()))
+							.AddFromAssembly(AssemblyToConfigure);
+						m.HbmMappings
+							.AddFromAssembly(AssemblyToConfigure);
+					}).BuildConfiguration();
 
-                configuration = Fluently.Configure(configuration)
-                        .Mappings(m =>
-                        {
-                            m.FluentMappings
-                                .Conventions.Setup(s => s.Add(AutoImport.Never()))
-                                .AddFromAssembly(AssemblyToConfigure);
-                            m.HbmMappings
-                                .AddFromAssembly(AssemblyToConfigure);
-                        }).BuildConfiguration();
+			if (PosCustomConfiguration != null)
+				PosCustomConfiguration(configuration);
+		}
 
-                if (PosCustomConfiguration != null)
-                    PosCustomConfiguration(configuration);
-            }
-            finally
-            {
-                _configMutex.ReleaseMutex();
-            }
-        }
+		public static void Initialize()
+		{
+			if (configuration != null)
+				throw new InvalidOperationException(ResourceHelper.GetString("YouCanCallConfigurationManagerInitializeOnlyOnce"));
+
+			try
+			{
+				_configMutex.WaitOne();
+
+				configuration = new Configuration();
+
+				Initialize(configuration);
+			}
+			finally
+			{
+				_configMutex.ReleaseMutex();
+			}
+		}
 
 		public static Assembly AssemblyToConfigure { get; set; }
 
