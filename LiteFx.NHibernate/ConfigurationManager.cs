@@ -26,6 +26,8 @@ namespace LiteFx.Context.NHibernate
 			}
 		}
 
+		public static bool IsConfigured => configuration != null;
+
 		public static void Initialize(Configuration configuration)
 		{
 			configuration.LinqToHqlGeneratorsRegistry<ExtendedLinqtoHqlGeneratorsRegistry>();
